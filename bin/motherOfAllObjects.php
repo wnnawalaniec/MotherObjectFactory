@@ -7,8 +7,8 @@ use Symfony\Component\Console\Application;
 
 if (file_exists($vendor = __DIR__ . '/../vendor')) {
     define('ROOT_DIR', __DIR__ . '/..');
-} elseif (file_exists($vendor = __DIR__ . '/../../../vendor')) {
-    define('ROOT_DIR', __DIR__ . '/../..');
+} elseif (file_exists($vendor = __DIR__ . '/../../..')) {
+    define('ROOT_DIR', $vendor . '/..');
 }
 
 include_once $vendor . '/autoload.php';
