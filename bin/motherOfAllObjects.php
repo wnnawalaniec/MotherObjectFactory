@@ -2,11 +2,19 @@
 <?php
 declare(strict_types=1);
 
+use MotherOfAllObjects\Command\GenerateMotherObjectCommand;
 use Symfony\Component\Console\Application;
 
-define('COMPOSER_BIN_PATH', $_composer_bin_dir ?? __DIR__);
-define('COMPOSER_AUTOLOAD_PATH', $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php');
-require COMPOSER_AUTOLOAD_PATH;
+if (file_exists($vendor = __DIR__ . '/../vendor')) {
+    define('ROOT_DIR', __DIR__ . '/..');
+} elseif (file_exists($vendor = __DIR__ . '/../../vendor')) {
+    define('ROOT_DIR', __DIR__ . '/../..');
+}
+
+include_once $vendor . '/autoload.php';
+
+define('PROJECT_ROOT_DIR', $vendor . '/..');
 
 $application = new Application();
+$application->add(new GenerateMotherObjectCommand());
 $application->run();
