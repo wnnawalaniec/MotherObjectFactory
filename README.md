@@ -69,3 +69,14 @@ public function testCreatingPost_TitleIsTooLong_ThrowsException(): void
     Post::create($tooLongTitle, ContentMother::any(), UserMother::any());
 }
 ```
+
+## Usage
+
+To generate mother object simply type:
+```shell
+./vendor/bin/motherObjectFactory generate App\\Package\\Class
+```
+Change `App\\Package\\Class` to whatever class in your code. Then you will be asked to give a namespace,
+where mother object shall be created. You can use autocomplete based on your `composer.json` file, typing
+first letters and using `TAB` key.
+When you are done, type `enter` and new fill will be created. Change it if it's needed.

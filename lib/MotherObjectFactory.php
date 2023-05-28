@@ -42,7 +42,7 @@ final class MotherObjectFactory
     private static function addDefaultTargetFactoryMethod(ClassType $motherObject, \ReflectionClass $child): void
     {
         $any = $motherObject->addMethod(self::DEFAULT_CHILD_FACTORY_METHOD_NAME);
-        $any->setReturnType($child->getName());
+        $any->setReturnType('\\'.$child->getName());
         $any->setStatic();
         $any->addBody(
             sprintf(
@@ -102,14 +102,14 @@ final class MotherObjectFactory
     private static function addTargetFactoryMethod(ClassType $motherObject, \ReflectionClass $child): void
     {
         $create = $motherObject->addMethod(self::CHILD_CLASS_FACTORY_METHOD_NAME);
-        $create->setReturnType($child->getName());
+        $create->setReturnType('\\'.$child->getName());
         $propertyCalls = array_map(
             fn(\ReflectionParameter $parameter) => "\$this->{$parameter->getName()}",
             $child->getConstructor()->getParameters()
         );
         $create->setBody(
             sprintf(
-                "return new %s(%s);",
+                "return new \%s(%s);",
                 $child->getName(),
                 implode(',', $propertyCalls)
             )
