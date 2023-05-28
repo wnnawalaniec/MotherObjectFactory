@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace MotherOfAllObjects;
 
+use Faker\Factory;
 use Nette\PhpGenerator\ClassType;
 
 final class MotherObjectFactory
@@ -17,6 +18,7 @@ final class MotherObjectFactory
         $motherClass = new ClassType("{$childReflection->getShortName()}Mother");
         $motherClass->setFinal();
         self::addBuilderProperties($motherClass, $childReflection);
+        self::addStaticFactoryMethod($motherClass, $childReflection);
         self::addFluentBuilderMethods($motherClass, $childReflection);
         self::addDefaultTargetFactoryMethod($motherClass, $childReflection);
         self::addTargetFactoryMethod($motherClass, $childReflection);
@@ -34,9 +36,6 @@ final class MotherObjectFactory
             $parameter = $construct->addParameter($constructorParameter->getName());
             $parameter->setNullable($constructorParameter->allowsNull());
             $parameter->setType($constructorParameter->hasType() ? (string)$constructorParameter->getType() : null);
-            if ($constructorParameter->isDefaultValueAvailable()) {
-                $parameter->setDefaultValue($constructorParameter->getDefaultValue());
-            }
         }
     }
 
@@ -52,6 +51,52 @@ final class MotherObjectFactory
                 self::CHILD_CLASS_FACTORY_METHOD_NAME
             )
         );
+    }
+
+    private static function addStaticFactoryMethod(ClassType $motherObject, \ReflectionClass $child): void
+    {
+        $newObject = $motherObject->addMethod(self::MOTHER_OBJECT_FACTORY_METHOD_NAME);
+        $newObject->setReturnType('self');
+        $newObject->setStatic();
+        $newObject->addBody("return new self(");
+        $values = [];
+        $faker = Factory::create();
+        foreach ($child->getConstructor()->getParameters() as $parameter) {
+            if ($parameter->isDefaultValueAvailable()) {
+                $default = $parameter->getDefaultValue();
+                if (is_string($default)) {
+                    $default = '"' . $default . '"';
+                }
+
+                $values[] = $default ?? 'null';
+            } else {
+                if (method_exists($faker, $parameter->name)) {
+                    $values[] = $faker->{$parameter->name}();
+                } else {
+                    if (!$parameter->hasType()) {
+                        $values[] = null;
+                        continue;
+                    }
+
+                    switch ($parameter->getType()) {
+                        case 'string':
+                            $values[] = '"' . $faker->text() . '"';
+                            break;
+                        case 'int':
+                            $values[] = $faker->randomNumber();
+                            break;
+                        case 'float':
+                            $values[] = $faker->randomFloat();
+                        case 'bool':
+                            $values[] = true;
+                        case 'mixed':
+                            $values[] = null;
+                    }
+                }
+            }
+        }
+        $newObject->addBody(implode(',', $values));
+        $newObject->addBody(");");
     }
 
     private static function addTargetFactoryMethod(ClassType $motherObject, \ReflectionClass $child): void
@@ -74,11 +119,8 @@ final class MotherObjectFactory
     private static function addBuilderProperties(ClassType $motherObject, \ReflectionClass $child): void
     {
         foreach ($child->getConstructor()->getParameters() as $parameter) {
-            $property = $motherObject->addProperty($parameter->name)
+            $motherObject->addProperty($parameter->name)
                 ->setType($parameter->hasType() ? (string)$parameter->getType() : null);
-            if ($parameter->isDefaultValueAvailable()) {
-                $property->setValue($parameter->getDefaultValue());
-            }
         }
     }
 

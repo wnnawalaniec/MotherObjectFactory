@@ -5,6 +5,7 @@ namespace Tests\MotherOfAllObjects;
 
 use MotherOfAllObjects\MotherObjectFactory;
 use PHPUnit\Framework\TestCase;
+use Tests\MotherOfAllObjects\MotherObjects\SomeClassMother;
 use Tests\MotherOfAllObjects\Stub\SomeClass;
 
 class MotherObjectFactoryTest extends TestCase

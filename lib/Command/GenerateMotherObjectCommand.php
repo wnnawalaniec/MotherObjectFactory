@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace MotherOfAllObjects\Command;
 
 use MotherOfAllObjects\MotherObjectFactory;
+use Nette\PhpGenerator\PhpFile;
+use Nette\PhpGenerator\PsrPrinter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
@@ -45,7 +47,6 @@ class GenerateMotherObjectCommand extends Command
         /** @var QuestionHelper $helper */
         $helper = $this->getHelper('question');
         $chosenNamespace = $helper->ask($input, $output, $namespaceQuestion);
-        $motherObjectLocation = null;
         foreach ($declaredNamespaces as $namespace => $directory) {
             if (!str_starts_with($chosenNamespace, (string)$namespace)) {
                 continue;
@@ -53,11 +54,20 @@ class GenerateMotherObjectCommand extends Command
 
             $addedNamespace = str_replace((string)$namespace, '', $chosenNamespace);
             if ($addedNamespace) {
-                $directory = str_replace('\\', '/', $addedNamespace) . '/';
+                $directory .= str_replace('\\', '/', $addedNamespace) . '/';
             }
-            $file = $directory . $class->getShortName() . 'MotherObject.php';
-            mkdir($directory, recursive: true);
-            file_put_contents($file, MotherObjectFactory::create($input->getArgument('class')));
+            $file = $directory . $class->getShortName() . 'Mother.php';
+            @mkdir($directory, recursive: true);
+            $fileContent = <<<PHP
+<?php
+declare(strict_types=1);
+
+namespace {$chosenNamespace};
+
+PHP;
+            $fileContent .= MotherObjectFactory::create($input->getArgument('class'));
+            $printer = new PsrPrinter();
+            file_put_contents($file, $printer->printFile(PhpFile::fromCode($fileContent)));
         }
 
         return Command::SUCCESS;
