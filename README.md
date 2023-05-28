@@ -11,6 +11,9 @@ generated.
 A mother object is a testing class that creates example objects for testing purposes, helping to streamline test setup
 and reuse fixtures across multiple tests. More on this can be found in link above.
 
+## Install
+`composer require --dev wojciech.nawalaniec/mother-object-factory`
+
 ## Example
 
 Assume we have class like this in our code, which we use a lot in our tests:
