@@ -1,5 +1,5 @@
 {
-    "name": "wojciech.nawalaniec/mother-of-all-objects",
+    "name": "wojciech.nawalaniec/mother-object-factory",
     "description": "Library making creation of mother objects super easy.",
     "type": "library",
     "autoload": {
