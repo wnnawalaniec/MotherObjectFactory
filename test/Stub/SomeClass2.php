@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Tests\MotherObjectFactory\Stub;
 
-final class SomeClass
+final class SomeClass2
 {
     public function __construct(string $s, ?int $i= null, float $f = 1.1, int|float $if = 1)
     {

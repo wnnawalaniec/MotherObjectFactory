@@ -1,76 +1,158 @@
 <?php
+
 declare(strict_types=1);
 
-namespace MotherOfAllObjects\Command;
+namespace MotherObjectFactory\Command;
 
-use MotherOfAllObjects\MotherObjectFactory;
-use Nette\PhpGenerator\PhpFile;
-use Nette\PhpGenerator\PsrPrinter;
+use MotherObjectFactory\MotherObjectFactory;
+use MotherObjectFactory\Tools\NamespaceUtils;
+use Mouf\Composer\ClassNameMapper;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Console\Question\Question;
+use TheCodingMachine\ClassExplorer\Glob\GlobClassExplorer;
 
 class GenerateMotherObjectCommand extends Command
 {
-    public function __construct()
+    public function __construct(string $rootPath)
     {
         parent::__construct('generate');
+        $this->setDescription('Generates mother object for class.');
         $this->addArgument(
-            'class',
-            InputArgument::REQUIRED,
-            'Namespace of class for which we want to generate mother-object'
+            self::CLASS_ARGUMENT,
+            InputArgument::OPTIONAL,
+            "Full class name (remember to use double \\\\ to separate namespace parts)"
+            . " for which we want to generate mother object."
         );
+        $this->rootPath = realpath($rootPath);
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $composerJsonPath = PROJECT_ROOT_DIR . '/composer.json';
-        $composerJson = json_decode(file_get_contents($composerJsonPath), true);
-        if (!$composerJson) {
-            $output->writeln('Couldn\'t find and load composer.json file under path: ' . $composerJsonPath);
-            return Command::FAILURE;
-        }
-        $class = new \ReflectionClass($input->getArgument('class'));
-        $declaredNamespaces = [
-            ...$composerJson['autoload']['psr-0'] ?? [],
-            ...$composerJson['autoload']['psr-4'] ?? [],
-            ...$composerJson['autoload-dev']['psr-0'] ?? [],
-            ...$composerJson['autoload-dev']['psr-4'] ?? []
-        ];
-        $namespaceQuestion = new Question(
-            'In which namespace, mother object shall be created?'
-        );
-        $namespaceQuestion->setAutocompleterValues(array_keys($declaredNamespaces));
-        /** @var QuestionHelper $helper */
-        $helper = $this->getHelper('question');
-        $chosenNamespace = $helper->ask($input, $output, $namespaceQuestion);
-        foreach ($declaredNamespaces as $namespace => $directory) {
-            if (!str_starts_with($chosenNamespace, (string)$namespace)) {
-                continue;
+        try {
+            $composer = $this->loadComposerFile($this->rootPath . '/composer.json');
+            // step 1 - determine class
+            if (!$input->getArgument(self::CLASS_ARGUMENT)) {
+                $class = $this->askForClass($input, $output);
+            } else {
+                $class = $input->getArgument(self::CLASS_ARGUMENT);
             }
 
-            $addedNamespace = str_replace((string)$namespace, '', $chosenNamespace);
-            if ($addedNamespace) {
-                $directory .= str_replace('\\', '/', $addedNamespace) . '/';
+
+            $childClass = new \ReflectionClass($class);
+            $motherObjectNamespace = $this->askForMotherObjectNamespace($composer, $input, $output);
+            $factory = MotherObjectFactory::instance();
+            $mapper = ClassNameMapper::createFromComposerFile(rootPath: $this->rootPath, useAutoloadDev: true);
+            $possibleLocations = $mapper->getPossibleFileNames(
+                $motherObjectNamespace . '\\' . $childClass->getShortName() . 'Mother'
+            );
+            if (\count($possibleLocations) > 1) {
+                $location = $this->askForLocation($input, $output, $possibleLocations);
+            } else {
+                $location = $possibleLocations[0];
             }
-            $file = $directory . $class->getShortName() . 'Mother.php';
-            @mkdir($directory, recursive: true);
+
+            @mkdir(directory: dirname($location), recursive: true);
             $fileContent = <<<PHP
 <?php
 declare(strict_types=1);
 
-namespace {$chosenNamespace};
+namespace {$motherObjectNamespace};
 
 PHP;
-            $fileContent .= MotherObjectFactory::create($input->getArgument('class'));
-            $printer = new PsrPrinter();
-            file_put_contents($file, $printer->printFile(PhpFile::fromCode($fileContent)));
+            $fileContent .= $factory->create($class);
+            file_put_contents($possibleLocations[0], $fileContent);
+            return Command::SUCCESS;
+        } catch (\Exception $e) {
+            $output->writeln($e->getMessage());
+            return Command::FAILURE;
         }
-
-        return Command::SUCCESS;
     }
 
+    private function askForMotherObjectNamespace(
+        array $composer,
+        InputInterface $input,
+        OutputInterface $output
+    ): mixed {
+        $namespacesRoots = [
+            ...$composer['autoload']['psr-0'] ?? [],
+            ...$composer['autoload']['psr-4'] ?? [],
+            ...$composer['autoload-dev']['psr-0'] ?? [],
+            ...$composer['autoload-dev']['psr-4'] ?? []
+        ];
+        $namespaceQuestion = new Question(
+            'In which namespace, mother object shall be created?' . PHP_EOL
+        );
+        $namespaceQuestion->setAutocompleterValues(array_keys($namespacesRoots));
+        return $this->getHelper('question')->ask($input, $output, $namespaceQuestion);
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function askForClass(InputInterface $input, OutputInterface $output): string
+    {
+        $classes = $this->listProjectClasses();
+        $autocomplete = function (string $input) use ($classes): array {
+            return NamespaceUtils::allSubNamespaces($input, $classes);
+        };
+        $question = new Question('For which class do you want to create mother object?' . PHP_EOL);
+        $question->setAutocompleterCallback($autocomplete);
+        return $this->getHelper('question')->ask($input, $output, $question);
+    }
+
+    private function askForLocation(InputInterface $input, OutputInterface $output, array $possibleLocations): string
+    {
+        $question = new ChoiceQuestion('Select location for mother object class:', $possibleLocations, 0);
+        return $this->getHelper('question')->ask($input, $output, $question);
+    }
+
+    /**
+     * @return string[]
+     * @throws \Exception
+     */
+    private function listProjectClasses(): array
+    {
+        $composer = $this->loadComposerFile($this->rootPath . '/composer.json');
+        $namespaces = array_unique(
+            array_keys([
+                ...$composer['autoload']['psr-0'] ?? [],
+                ...$composer['autoload']['psr-4'] ?? [],
+                ...$composer['autoload-dev']['psr-0'] ?? [],
+                ...$composer['autoload-dev']['psr-4'] ?? [],
+            ])
+        );
+        $psr16Cache = new Psr16Cache(new ArrayAdapter());
+        $rootPath = $this->rootPath;
+        $mapper = ClassNameMapper::createFromComposerFile(useAutoloadDev: true);
+        return array_merge(
+            ...array_map(static fn($namespace) => (new GlobClassExplorer(
+                namespace: $namespace,
+                cache: $psr16Cache,
+                classNameMapper: $mapper,
+                rootPath: $rootPath
+            ))->getClasses(), $namespaces)
+        );
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function loadComposerFile(string $location): array
+    {
+        $composerJson = json_decode(file_get_contents($location), true);
+        if (!$composerJson) {
+            throw new \Exception('Couldn\'t find and load composer.json file under path: ' . $location);
+        }
+
+        return $composerJson;
+    }
+
+    private const CLASS_ARGUMENT = 'class';
+    private string $rootPath;
 }
