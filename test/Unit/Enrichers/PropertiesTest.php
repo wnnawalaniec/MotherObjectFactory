@@ -22,6 +22,7 @@ namespace Tests\MotherObjectFactory\Unit\Enrichers {
                 ['name' => 'f', 'type' => 'float'],
                 ['name' => 'if', 'type' => 'int|float'],
                 ['name' => 'any', 'type' => ''],
+                ['name' => 'array', 'type' => 'array'],
             ];
             $this->assertEnrichedObjectHasMethod(
                 name: '__construct',
@@ -52,7 +53,8 @@ namespace Tests\MotherObjectFactory\Unit\Enrichers\PropertiesTest {
             private ?int $i = null,
             private float $f = 1.1,
             private int|float $if = 1,
-            private $any
+            private $any,
+            private array $array = []
         ) {
         }
     }

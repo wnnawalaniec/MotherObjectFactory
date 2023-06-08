@@ -60,7 +60,7 @@ class Builder extends Properties implements Enricher
                     $default = '"' . $default . '"';
                 }
 
-                $values[] = $default ?? 'null';
+                $values[] = var_export($default, true);
             } else {
                 if (method_exists($faker, $parameter->name)) {
                     $values[] = $faker->{$parameter->name}();
@@ -83,6 +83,8 @@ class Builder extends Properties implements Enricher
                             $values[] = true;
                         case 'mixed':
                             $values[] = null;
+                        case 'array':
+                            $values[] = '[]';
                     }
                 }
             }

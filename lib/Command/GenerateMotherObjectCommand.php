@@ -44,10 +44,10 @@ class GenerateMotherObjectCommand extends Command
             }
 
 
-            $childClass = new \ReflectionClass($class);
-            $motherObjectNamespace = $this->askForMotherObjectNamespace($composer, $input, $output);
+            $motherObjectNamespace = $this->askForMotherObjectNamespace($input, $output);
             $factory = MotherObjectFactory::instance();
             $mapper = ClassNameMapper::createFromComposerFile(rootPath: $this->rootPath, useAutoloadDev: true);
+            $childClass = new \ReflectionClass($class);
             $possibleLocations = $mapper->getPossibleFileNames(
                 $motherObjectNamespace . '\\' . $childClass->getShortName() . 'Mother'
             );
@@ -74,22 +74,13 @@ PHP;
         }
     }
 
-    private function askForMotherObjectNamespace(
-        array $composer,
-        InputInterface $input,
-        OutputInterface $output
-    ): mixed {
-        $namespacesRoots = [
-            ...$composer['autoload']['psr-0'] ?? [],
-            ...$composer['autoload']['psr-4'] ?? [],
-            ...$composer['autoload-dev']['psr-0'] ?? [],
-            ...$composer['autoload-dev']['psr-4'] ?? []
-        ];
-        $namespaceQuestion = new Question(
+    private function askForMotherObjectNamespace(InputInterface $input, OutputInterface $output): mixed
+    {
+        $question = new Question(
             'In which namespace, mother object shall be created?' . PHP_EOL
         );
-        $namespaceQuestion->setAutocompleterValues(array_keys($namespacesRoots));
-        return $this->getHelper('question')->ask($input, $output, $namespaceQuestion);
+        $question->setAutocompleterCallback($this->classesAutocomplete());
+        return $this->getHelper('question')->ask($input, $output, $question);
     }
 
     /**
@@ -97,12 +88,8 @@ PHP;
      */
     private function askForClass(InputInterface $input, OutputInterface $output): string
     {
-        $classes = $this->listProjectClasses();
-        $autocomplete = function (string $input) use ($classes): array {
-            return NamespaceUtils::allSubNamespaces($input, $classes);
-        };
         $question = new Question('For which class do you want to create mother object?' . PHP_EOL);
-        $question->setAutocompleterCallback($autocomplete);
+        $question->setAutocompleterCallback($this->classesAutocomplete());
         return $this->getHelper('question')->ask($input, $output, $question);
     }
 
@@ -151,6 +138,15 @@ PHP;
         }
 
         return $composerJson;
+    }
+
+    protected function classesAutocomplete(): \Closure
+    {
+        $classes = $this->listProjectClasses();
+        $autocomplete = function (string $input) use ($classes): array {
+            return NamespaceUtils::allSubNamespaces($input, $classes);
+        };
+        return $autocomplete;
     }
 
     private const CLASS_ARGUMENT = 'class';
