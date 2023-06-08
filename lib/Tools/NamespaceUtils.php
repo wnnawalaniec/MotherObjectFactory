@@ -46,18 +46,18 @@ final class NamespaceUtils
         return $aggregatedClasses;
     }
 
-    public static function allSubNamespaces(string $namespace, array $classes): array
+    public static function findMatchingElements(string $needle, array $classes): array
     {
         $matching = [];
         foreach ($classes as $class) {
-            if (str_starts_with($class, $namespace)) {
+            if (str_starts_with($class, $needle)) {
                 $matching[] = $class;
             }
         }
 
         $result = [];
         foreach ($matching as $match) {
-            $nextSeparator = strpos($match, '\\', strlen($namespace));
+            $nextSeparator = strpos($match, '\\', strlen($needle));
             if ($nextSeparator) {
                 $result[] = substr($match, 0, $nextSeparator + 1);
             } else {

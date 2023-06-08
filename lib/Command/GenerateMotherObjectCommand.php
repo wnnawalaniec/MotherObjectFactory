@@ -79,7 +79,7 @@ PHP;
         $question = new Question(
             'In which namespace, mother object shall be created?' . PHP_EOL
         );
-        $question->setAutocompleterCallback($this->classesAutocomplete());
+        $question->setAutocompleterCallback($this->namespacesAutocomplete());
         return $this->getHelper('question')->ask($input, $output, $question);
     }
 
@@ -140,13 +140,29 @@ PHP;
         return $composerJson;
     }
 
+    /**
+     * @throws \Exception
+     */
     protected function classesAutocomplete(): \Closure
     {
         $classes = $this->listProjectClasses();
-        $autocomplete = function (string $input) use ($classes): array {
-            return NamespaceUtils::allSubNamespaces($input, $classes);
+        return function (string $input) use ($classes): array {
+            return NamespaceUtils::findMatchingElements($input, $classes);
         };
-        return $autocomplete;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function namespacesAutocomplete(): \Closure
+    {
+        $classes = $this->listProjectClasses();
+        return function (string $input) use ($classes): array {
+            return array_filter(
+                NamespaceUtils::findMatchingElements($input, $classes),
+                fn($str) => str_ends_with($str, '\\')
+            );
+        };
     }
 
     private const CLASS_ARGUMENT = 'class';
