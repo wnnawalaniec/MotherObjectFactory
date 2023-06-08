@@ -45,11 +45,15 @@ class GenerateMotherObjectCommand extends Command
 
 
             $motherObjectNamespace = $this->askForMotherObjectNamespace($input, $output);
+            if (!str_ends_with($motherObjectNamespace, '\\')) {
+                $motherObjectNamespace .= '\\';
+            }
+
             $factory = MotherObjectFactory::instance();
             $mapper = ClassNameMapper::createFromComposerFile(rootPath: $this->rootPath, useAutoloadDev: true);
             $childClass = new \ReflectionClass($class);
             $possibleLocations = $mapper->getPossibleFileNames(
-                $motherObjectNamespace . '\\' . $childClass->getShortName() . 'Mother'
+                $motherObjectNamespace . $childClass->getShortName() . 'Mother'
             );
             if (\count($possibleLocations) > 1) {
                 $location = $this->askForLocation($input, $output, $possibleLocations);
