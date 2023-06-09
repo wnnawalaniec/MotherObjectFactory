@@ -45,15 +45,15 @@ class GenerateMotherObjectCommand extends Command
 
 
             $motherObjectNamespace = $this->askForMotherObjectNamespace($input, $output);
-            if (!str_ends_with($motherObjectNamespace, '\\')) {
-                $motherObjectNamespace .= '\\';
+            if (str_ends_with($motherObjectNamespace, '\\')) {
+                $motherObjectNamespace = substr($motherObjectNamespace, -1);
             }
 
             $factory = MotherObjectFactory::instance();
             $mapper = ClassNameMapper::createFromComposerFile(rootPath: $this->rootPath, useAutoloadDev: true);
             $childClass = new \ReflectionClass($class);
             $possibleLocations = $mapper->getPossibleFileNames(
-                $motherObjectNamespace . $childClass->getShortName() . 'Mother'
+                $motherObjectNamespace . '\\' . $childClass->getShortName() . 'Mother'
             );
             if (\count($possibleLocations) > 1) {
                 $location = $this->askForLocation($input, $output, $possibleLocations);
@@ -154,7 +154,7 @@ PHP;
     {
         $classes = $this->listProjectClasses();
         return function (string $input) use ($classes): array {
-            return NamespaceUtils::findMatchingElements($input, $classes);
+            return array_values(NamespaceUtils::findMatchingElements($input, $classes));
         };
     }
 
@@ -165,9 +165,11 @@ PHP;
     {
         $classes = $this->listProjectClasses();
         return function (string $input) use ($classes): array {
-            return array_filter(
-                NamespaceUtils::findMatchingElements($input, $classes),
-                fn($str) => str_ends_with($str, '\\')
+            return array_values(
+                array_filter(
+                    NamespaceUtils::findMatchingElements($input, $classes),
+                    fn($str) => str_ends_with($str, '\\')
+                )
             );
         };
     }
