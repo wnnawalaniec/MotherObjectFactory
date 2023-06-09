@@ -61,7 +61,10 @@ class GenerateMotherObjectCommand extends Command
                 $location = $possibleLocations[0];
             }
 
-            @mkdir(directory: dirname($location), recursive: true);
+            if (!is_dir(dirname($location))) {
+                mkdir(directory: dirname($location), recursive: true);
+            }
+
             $fileContent = <<<PHP
 <?php
 declare(strict_types=1);
@@ -70,7 +73,7 @@ namespace {$motherObjectNamespace};
 
 PHP;
             $fileContent .= $factory->create($class);
-            file_put_contents($possibleLocations[0], $fileContent);
+            file_put_contents($location, $fileContent);
             return Command::SUCCESS;
         } catch (\Exception $e) {
             $output->writeln($e->getMessage());
