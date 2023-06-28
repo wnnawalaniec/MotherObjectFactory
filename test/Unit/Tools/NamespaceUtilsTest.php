@@ -107,14 +107,20 @@ class NamespaceUtilsTest extends TestCase
             'Top\\SubB\\',
             'Top\\SubC'
         ];
-        $this->assertEqualsCanonicalizing($expectedSubNamespaces, NamespaceUtils::findMatchingElements($namespace, $classes));
+        $this->assertEqualsCanonicalizing(
+            $expectedSubNamespaces,
+            NamespaceUtils::findMatchingElements($namespace, $classes)
+        );
 
 
         $namespace = 'Top\\SubA';
         $expectedSubNamespaces = [
             'Top\\SubA\\'
         ];
-        $this->assertEqualsCanonicalizing($expectedSubNamespaces, NamespaceUtils::findMatchingElements($namespace, $classes));
+        $this->assertEqualsCanonicalizing(
+            $expectedSubNamespaces,
+            NamespaceUtils::findMatchingElements($namespace, $classes)
+        );
     }
 
     public function testGettingAllSubNamespacesWhenCompleteNamespaceGiven(): void
