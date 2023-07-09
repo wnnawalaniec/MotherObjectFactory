@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MotherObjectFactory\Factory\Php8NetteFactory;
 
 use MotherObjectFactory\Factory\Exception\MotherObjectCannotBeCreated;
+use MotherObjectFactory\Tools\ReflectionUtils;
 use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\Method;
 use Nette\PhpGenerator\Parameter;
@@ -26,7 +27,6 @@ class AddMethodReturningChildObject
         $factoryMethod = $motherObject->addMethod($methodName);
         $factoryMethod->setReturnType($this->globalNamespaceClassName($child));
         $this->setMethodBody($factoryMethod, $methodCreatingChildObject, $child);
-
 
         return $motherObject;
     }
@@ -51,14 +51,7 @@ class AddMethodReturningChildObject
         $parameters = [];
         foreach ($childFactoryMethod->getParameters() as $childParameter) {
             $motherParameter = $factoryMethod->addParameter($childParameter->name);
-            $childParameterType = (string)$childParameter->getType();
-            $isSelfType = $childParameterType === 'self' || $childParameterType === $child->getName();
-            if ($isSelfType) {
-                $motherParameter->setType($this->globalNamespaceClassName($child));
-            } else {
-                $motherParameter->setType($childParameterType);
-            }
-
+            $motherParameter->setType(ReflectionUtils::typeToString($childParameter->getType()));
             if ($childParameter->isDefaultValueAvailable()) {
                 if ($child->getConstructor()?->isPublic()) {
                     $motherParameter->setDefaultValue($childParameter->getDefaultValue());

@@ -56,4 +56,31 @@ final class ReflectionUtils
                 || $class->isSubclassOf($returnType->getName())
             );
     }
+
+    public static function typeToString(?\ReflectionType $type): string
+    {
+        if ($type === null) {
+            return '';
+        }
+
+        if ($type instanceof ReflectionNamedType) {
+            if ($type->isBuiltin()) return (string) $type;
+            return '\\' . $type;
+        }
+
+        if ($type instanceof ReflectionUnionType) {
+            return implode('|', array_map(['self', 'typeToString'], $type->getTypes()));
+        }
+
+        if ($type instanceof ReflectionIntersectionType) {
+            return implode('&', array_map(['self', 'typeToString'], $type->getTypes()));
+        }
+
+        return (string) $type;
+    }
+
+    public static function isScalar(string $type): bool
+    {
+        return in_array($type, ['int', 'float', 'string', 'bool'], true);
+    }
 }

@@ -66,7 +66,7 @@ class Php8NetteFactory implements Factory
         $construct = $mother->addMethod(self::CONSTRUCTOR);
 
         $childConstructorParameters = $child->getConstructor()->getParameters();
-        foreach ($this->parametersUsedToConstructChildObject() as $constructorParameter) {
+        foreach ($childConstructorParameters as $constructorParameter) {
             $construct->addBody("\$this->{$constructorParameter->getName()}=\${$constructorParameter->getName()};");
             $parameter = $construct->addParameter($constructorParameter->getName());
             $parameter->setNullable($constructorParameter->allowsNull());
@@ -132,30 +132,34 @@ class Php8NetteFactory implements Factory
 
                 $values[] = var_export($default, true);
             } else {
-                if (method_exists($faker, $parameter->name)) {
+                if ($this->canFakeDefaultValue($faker, $parameter)) {
                     $values[] = $faker->{$parameter->name}();
-                } else {
-                    if (!$parameter->hasType()) {
-                        $values[] = null;
-                        continue;
-                    }
+                    continue;
+                }
 
-                    switch ($parameter->getType()) {
-                        case 'string':
-                            $values[] = '"' . $faker->text() . '"';
-                            break;
-                        case 'int':
-                            $values[] = $faker->randomNumber();
-                            break;
-                        case 'float':
-                            $values[] = $faker->randomFloat();
-                        case 'bool':
-                            $values[] = true;
-                        case 'mixed':
-                            $values[] = null;
-                        case 'array':
-                            $values[] = '[]';
-                    }
+                if (!$parameter->hasType()) {
+                    $values[] = null;
+                    continue;
+                }
+
+                switch ($parameter->getType()) {
+                    case 'string':
+                        $values[] = '"' . $faker->text() . '"';
+                        break;
+                    case 'int':
+                        $values[] = $faker->randomNumber();
+                        break;
+                    case 'float':
+                        $values[] = $faker->randomFloat();
+                        break;
+                    case 'bool':
+                        $values[] = true;
+                        break;
+                    case 'mixed':
+                        $values[] = null;
+                        break;
+                    case 'array':
+                        $values[] = '[]';
                 }
             }
         }
@@ -172,26 +176,10 @@ class Php8NetteFactory implements Factory
         }
     }
 
-    public function applyingFeatures(): array
-    {
-        return [Feature::BUILDER_PATTERN, Feature::STATIC_FACTORY_METHOD_PATTERN];
-    }
-
-//    /**
-//     * @return \ReflectionParameter[]
-//     */
-//    private function parametersUsedToConstructChildObject(\ReflectionClass $child): array
-//    {
-//        if ($this->methodNameInChildClassUsedToConstructIt === self::CONSTRUCTOR) {
-//            if ($child->getConstructor()->isPrivate() || $child->getConstructor()->isProtected()) {
-//                throw new \RuntimeException('Cannot use private method %s for constructing child object');
-//            }
-//
-//            return $child->getConstructor()->getParameters();
-//        }
-//
-//        if ($this -)
-//    }
-
     private const CONSTRUCTOR = '__construct';
+
+    protected function canFakeDefaultValue(\Faker\Generator $faker, ReflectionParameter $parameter): bool
+    {
+        return method_exists($faker, $parameter->name);
+    }
 }
